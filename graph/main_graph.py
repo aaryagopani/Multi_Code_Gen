@@ -1,0 +1,216 @@
+
+# from langgraph.graph import MessageGraph
+# from chains.thinker import thinker_chain
+# from langchain_core.messages import HumanMessage
+
+# # Create the graph instance
+# graph = MessageGraph()
+
+# # Node function wrapping thinker_chain invocation
+# def thinker_node(state):
+#     # state will be a list of messages (HumanMessage, AIMessage etc.)
+#     return thinker_chain.invoke({
+#         "messages": state,
+#     })  
+
+# # Add the thinker node to the graph
+# graph.add_node("thinker", thinker_node)
+
+# # Set thinker as the entry point
+# graph.set_entry_point("thinker")
+
+# app = graph.compile()
+
+# def run_graph(user_input: str):
+#     # Convert user input into the required format
+#     initial_state = [HumanMessage(content=user_input)]
+#     # app = graph.compile()
+
+#     # print(app.get_graph().draw_mermaid())
+#     # app.get_graph().print_ascii()
+#     # Call the compiled graph with the input state
+#     response = app.invoke(initial_state)
+
+#     return response[-1].content  # Assuming the last message is the AI's response
+
+
+# if __name__ == "__main__":
+#     # Simple test run
+#     user_prompt = input("Enter your project idea: ")
+#     output = run_graph(user_prompt)
+#     print("\n--- Thinker Agent Output ---\n")
+#     print(output)
+
+
+
+
+import uuid
+import operator
+from typing import Annotated, List, TypedDict
+from langgraph.types import Command, interrupt
+from langgraph.checkpoint.memory import MemorySaver
+from chains.thinker import thinker_chain, thinker_parser
+from langgraph.graph import StateGraph
+
+class State(TypedDict):
+    messages: Annotated[List[dict], operator.concat]  # Changed from operator.concat
+    clarification_count: Annotated[int, operator.add]
+    clarification_needed: bool
+
+def Thinker_Agent(state: State) -> Command:
+    response = thinker_chain.invoke({
+        "messages": state["messages"],
+        "clarification_count": state["clarification_count"],
+        "format_instructions": thinker_parser.get_format_instructions(),
+    })
+    # print(f"""This is just before the thinker agent: {state["clarification_count"]}""")
+    assistant_message = {"role": "assistant", "content": response["output"]}
+
+    if response['clarification_needed'] == True and state["clarification_count"] < 3:
+        return Command(
+            update={"messages": [assistant_message], "clarification_needed": True},
+            goto="User_Node"
+        )
+    else:
+        return Command(
+            update={"messages": [assistant_message], "clarification_needed": False},
+            goto="end_node"
+        )
+
+def User_Node(state: State):
+    """This is the user get back node actually"""
+    question = state["messages"][-1]["content"]
+    # print(f"Thinker Agent: {question}")
+    # print("This is for debug: ",state["messages"])
+    # The interrupt will pause execution here
+    user_clarification = interrupt(
+        {
+            "question": question,
+            "awaiting": "user_clarification"
+        }
+    )
+    # print(f"Received Human Feedback: {user_clarification}")
+    user_message = {"role": "user", "content": user_clarification}
+    
+    return Command(
+        update={
+            "messages": [user_message],
+            "clarification_count": 1,
+            "clarification_needed": False
+        },
+        goto="Thinker_Agent"
+    )
+
+def end_node(state: State):     
+    """Final Node"""     
+    print(f"""The final output of the thinker agent is: {state["messages"][-1]["content"]}""")
+    return state
+
+# Build the graph
+graph = StateGraph(State)
+graph.add_node("Thinker_Agent", Thinker_Agent)
+graph.add_node("User_Node", User_Node)
+graph.add_node("end_node", end_node)
+
+# Set entry point and edges
+graph.set_entry_point("Thinker_Agent")
+graph.set_finish_point("end_node")
+
+def run_graph(user_input: str):
+    checkpointer = MemorySaver()
+    app = graph.compile(checkpointer=checkpointer)
+
+    thread_config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+
+    user_message = {"role": "user", "content": user_input}
+    initial_state = {
+        "messages": [user_message],
+        "clarification_count": 0,
+        "clarification_needed": False
+    }
+
+    # Initialize the stream
+    stream = app.stream(initial_state, config=thread_config)
+
+    while True:
+        for chunk in stream:
+            for node_id, value in chunk.items():
+                # print(f"Node ID: {node_id}")
+
+                if node_id == "__interrupt__":
+                    # Extract the question from the interrupt payload
+                    question = value[0].value.get("question", "Please provide input:")
+                    print(f"Thinker Agent: {question}")
+                    # Prompt the user for input
+                    user_feedback = input("Your response: ")
+                    # Resume the graph with the user's input using stream
+                    stream = app.stream(Command(resume=user_feedback), config=thread_config)
+                    print(thread_config)
+                    break  # Exit the inner loop to process the resumed stream
+                elif node_id == "end_node":
+                    initial_state = value
+            else:
+                continue  # Continue if the inner loop wasn't broken
+            break  # Break the outer loop if the inner loop was broken
+        else:
+            break  
+    
+    print(initial_state)
+
+
+
+
+
+
+
+
+
+
+# def run_graph(user_input: str):
+#     checkpointer = MemorySaver()
+#     app = graph.compile(checkpointer=checkpointer)
+    
+#     thread_config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    
+#     user_message = {"role": "user", "content": user_input}
+#     initial_state = {
+#         "messages": [user_message],
+#         "clarification_count": 0,
+#         "clarification_needed": False
+#     }
+    
+#     try:
+#         # First invoke to start the graph
+#         result = app.invoke(initial_state, config=thread_config)
+        
+#         # Handle interrupts in a simple loop
+#         while True:
+#             # Check current state
+#             current_state = app.get_state(thread_config)
+            
+#             # If no next steps, we're done
+#             if not current_state.next:
+#                 break
+            
+#             # If we're interrupted at User_Node, get user input
+#             if "User_Node" in current_state.next:
+#                 # Get user input
+#                 user_clarification = input("Please provide clarification: ")
+                
+#                 # Resume with user input
+#                 result = app.invoke(Command(resume=user_clarification), config=thread_config)
+#             else:
+#                 # Continue normal execution
+#                 result = app.invoke(None, config=thread_config)
+                
+#     except Exception as e:
+#         print(f"Error during graph execution: {e}")
+#         traceback.print_exc()
+#         raise
+
+
+
+
+
+
+
