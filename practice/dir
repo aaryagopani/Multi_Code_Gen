@@ -1,0 +1,125 @@
+{
+    "project_name": "Library Management System Website",
+    "structure": {
+        "root": {
+            "README.md": "",
+            "package.json": "",
+            "package-lock.json": "",
+            ".gitignore": "",
+            "docs": {
+                "api_documentation.md": "",
+                "database_schema.md": "",
+                "system_architecture.md": ""
+            },
+            "frontend": {
+                "src": {
+                    "App.js": "",
+                    "App.css": "",
+                    "index.js": "",
+                    "components": {
+                        "common": {
+                            "Navbar.js": "",
+                            "Footer.js": "",
+                            "SearchBar.js": ""
+                        },
+                        "authentication": {
+                            "Login.js": "",
+                            "Register.js": "",
+                            "Profile.js": ""
+                        },
+                        "catalog": {
+                            "BookList.js": "",
+                            "BookDetails.js": "",
+                            "BookCard.js": ""
+                        },
+                        "borrowing": {
+                            "BorrowingHistory.js": "",
+                            "Checkout.js": "",
+                            "ReturnBook.js": ""
+                        },
+                        "admin": {
+                            "AdminDashboard.js": "",
+                            "BookManagement.js": "",
+                            "UserManagement.js": "",
+                            "ReportGenerator.js": ""
+                        }
+                    },
+                    "services": {
+                        "authService.js": "",
+                        "bookService.js": "",
+                        "userService.js": "",
+                        "borrowingService.js": ""
+                    },
+                    "utils": {
+                        "api.js": "",
+                        "helpers.js": ""
+                    },
+                    "context": {
+                        "AuthContext.js": ""
+                    },
+                    "styles": {
+                        "global.css": "",
+                        "components": {
+                            "Navbar.css": "",
+                            "BookCard.css": ""
+                        }
+                    },
+                    "assets": {
+                        "images": {
+                            "logo.png": "",
+                            "default_book_cover.png": ""
+                        }
+                    },
+                    "tests": {
+                        "App.test.js": "",
+                        "components": {
+                            "BookList.test.js": ""
+                        }
+                    }
+                },
+                "public": {
+                    "index.html": "",
+                    "favicon.ico": ""
+                }
+            },
+            "backend": {
+                "src": {
+                    "index.js": "",
+                    "config": {
+                        "db.js": "",
+                        "auth.js": ""
+                    },
+                    "models": {
+                        "Book.js": "",
+                        "User.js": "",
+                        "Borrowing.js": ""
+                    },
+                    "controllers": {
+                        "authController.js": "",
+                        "bookController.js": "",
+                        "userController.js": "",
+                        "borrowingController.js": ""
+                    },
+                    "routes": {
+                        "authRoutes.js": "",
+                        "bookRoutes.js": "",
+                        "userRoutes.js": "",
+                        "borrowingRoutes.js": ""
+                    },
+                    "middleware": {
+                        "authMiddleware.js": "",
+                        "errorMiddleware.js": ""
+                    },
+                    "utils": {
+                        "logger.js": "",
+                        "helpers.js": ""
+                    },
+                    "tests": {
+                        "book.test.js": "",
+                        "user.test.js": ""
+                    }
+                }
+            }
+        }
+    }
+}
