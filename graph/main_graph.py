@@ -42,8 +42,6 @@
 #     print(output)
 
 
-
-
 import uuid
 import operator
 from typing import Annotated, List, TypedDict
@@ -75,7 +73,7 @@ def Thinker_Agent(state: State) -> Command:
     else:
         return Command(
             update={"messages": [assistant_message], "clarification_needed": False},
-            goto="Flow_Node"
+            goto="end_node"
         )
 
 def User_Node(state: State):
@@ -102,19 +100,24 @@ def User_Node(state: State):
         goto="Thinker_Agent"
     )
 
-def Flow_Node(state: State):
-    """This recieves thinker ouptut and give detailed output"""
-    thinker_output = state["messages"][-1]["content"]
-    # print(thinker_output)
-    response = flow_chain.invoke({"thinker_output": thinker_output})
-    print(response.content)
-    assistant_message = {"role": "assistant", "content": response.content}
+# def Flow_Node(state: State):
+#     """This recieves thinker ouptut and give detailed output"""
+#     thinker_output = state["messages"][-1]["content"]
+#     # print(thinker_output)
+#     response = flow_chain.invoke({"thinker_output": thinker_output})
+#     print(response.content)
+#     assistant_message = {"role": "assistant", "content": response.content}
 
-    return Command(
-        update={"messages": [assistant_message], "clarification_needed": False},
-        goto="end_node"
-    )
+#     return Command(
+#         update={"messages": [assistant_message], "clarification_needed": False},
+#         goto="end_node"
+#     )
     # return response.content
+
+
+def Implementation_Flow(thinker_output: str):
+    response = flow_chain.invoke({"thinker_output": thinker_output})
+    return response.content
 
 def end_node(state: State):     
     """Final Node"""     
@@ -124,7 +127,7 @@ def end_node(state: State):
 # Build the graph
 graph = StateGraph(State)
 graph.add_node("Thinker_Agent", Thinker_Agent)
-graph.add_node("Flow_Node", Flow_Node)
+# graph.add_node("Flow_Node", Flow_Node)
 graph.add_node("User_Node", User_Node)
 graph.add_node("end_node", end_node)
 
@@ -171,6 +174,11 @@ def run_graph(user_input: str):
         else:
             break  
     
+    thinker_output = initial_state["messages"][-1]["content"]
+    implementation_flow = Implementation_Flow(thinker_output)
+    print(f"The Flow: {implementation_flow}")
+
+
     # print(initial_state)
 # if __name__ == '__main__':
 #     run_graph("Make me project for e-commerce which just like amazon which maintain and take order and various seller selling product and buyer can buy it")
