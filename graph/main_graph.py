@@ -51,7 +51,9 @@ from langgraph.types import Command, interrupt
 from langgraph.checkpoint.memory import MemorySaver
 from chains.thinker import thinker_chain, thinker_parser
 from langgraph.graph import StateGraph
+from chains.scaffolder import build_dir_structure
 from chains.flow import flow_chain
+import asyncio
 
 class State(TypedDict):
     messages: Annotated[List[dict], operator.concat]  # Changed from operator.concat
@@ -101,6 +103,15 @@ def User_Node(state: State):
         },
         goto="Thinker_Agent"
     )
+
+def Dir_Node(state: State):
+    """This will help in create an directory structure"""
+    query = state["messages"][-1]["content"]
+
+    dir_response_json = asyncio.run(build_dir_structure(query))
+
+    
+
 
 def Flow_Node(state: State):
     """This recieves thinker ouptut and give detailed output"""
