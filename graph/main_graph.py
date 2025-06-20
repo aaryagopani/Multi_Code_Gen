@@ -100,21 +100,6 @@ def User_Node(state: State):
         goto="Thinker_Agent"
     )
 
-# def Flow_Node(state: State):
-#     """This recieves thinker ouptut and give detailed output"""
-#     thinker_output = state["messages"][-1]["content"]
-#     # print(thinker_output)
-#     response = flow_chain.invoke({"thinker_output": thinker_output})
-#     print(response.content)
-#     assistant_message = {"role": "assistant", "content": response.content}
-
-#     return Command(
-#         update={"messages": [assistant_message], "clarification_needed": False},
-#         goto="end_node"
-#     )
-    # return response.content
-
-
 def Implementation_Flow(thinker_output: str):
     response = flow_chain.invoke({"thinker_output": thinker_output})
     return response.content
@@ -178,60 +163,6 @@ def run_graph(user_input: str):
     implementation_flow = Implementation_Flow(thinker_output)
     print(f"The Flow: {implementation_flow}")
 
-
-    # print(initial_state)
-# if __name__ == '__main__':
-#     run_graph("Make me project for e-commerce which just like amazon which maintain and take order and various seller selling product and buyer can buy it")
-
-
-
-
-
-
-
-
-
-# def run_graph(user_input: str):
-#     checkpointer = MemorySaver()
-#     app = graph.compile(checkpointer=checkpointer)
-    
-#     thread_config = {"configurable": {"thread_id": str(uuid.uuid4())}}
-    
-#     user_message = {"role": "user", "content": user_input}
-#     initial_state = {
-#         "messages": [user_message],
-#         "clarification_count": 0,
-#         "clarification_needed": False
-#     }
-    
-#     try:
-#         # First invoke to start the graph
-#         result = app.invoke(initial_state, config=thread_config)
-        
-#         # Handle interrupts in a simple loop
-#         while True:
-#             # Check current state
-#             current_state = app.get_state(thread_config)
-            
-#             # If no next steps, we're done
-#             if not current_state.next:
-#                 break
-            
-#             # If we're interrupted at User_Node, get user input
-#             if "User_Node" in current_state.next:
-#                 # Get user input
-#                 user_clarification = input("Please provide clarification: ")
-                
-#                 # Resume with user input
-#                 result = app.invoke(Command(resume=user_clarification), config=thread_config)
-#             else:
-#                 # Continue normal execution
-#                 result = app.invoke(None, config=thread_config)
-                
-#     except Exception as e:
-#         print(f"Error during graph execution: {e}")
-#         traceback.print_exc()
-#         raise
 
 
 

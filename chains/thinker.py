@@ -115,7 +115,6 @@ OUTPUT: Return ONLY JSON with two fields:
 
 {format_instructions}
 
-{messages}
 """
     ),
     MessagesPlaceholder(variable_name="messages"),
@@ -158,7 +157,7 @@ def run_thinker(user_input: str):
         state["messages"].append({"role": "assistant", "content": response.output})
 
     return response
-    
+# print(thinker_parser.get_format_instructions())
 
 # Example usage:
 if __name__ == "__main__":
