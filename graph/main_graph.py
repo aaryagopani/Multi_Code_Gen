@@ -1,53 +1,10 @@
-
-# from langgraph.graph import MessageGraph
-# from chains.thinker import thinker_chain
-# from langchain_core.messages import HumanMessage
-
-# # Create the graph instance
-# graph = MessageGraph()
-
-# # Node function wrapping thinker_chain invocation
-# def thinker_node(state):
-#     # state will be a list of messages (HumanMessage, AIMessage etc.)
-#     return thinker_chain.invoke({
-#         "messages": state,
-#     })  
-
-# # Add the thinker node to the graph
-# graph.add_node("thinker", thinker_node)
-
-# # Set thinker as the entry point
-# graph.set_entry_point("thinker")
-
-# app = graph.compile()
-
-# def run_graph(user_input: str):
-#     # Convert user input into the required format
-#     initial_state = [HumanMessage(content=user_input)]
-#     # app = graph.compile()
-
-#     # print(app.get_graph().draw_mermaid())
-#     # app.get_graph().print_ascii()
-#     # Call the compiled graph with the input state
-#     response = app.invoke(initial_state)
-
-#     return response[-1].content  # Assuming the last message is the AI's response
-
-
-# if __name__ == "__main__":
-#     # Simple test run
-#     user_prompt = input("Enter your project idea: ")
-#     output = run_graph(user_prompt)
-#     print("\n--- Thinker Agent Output ---\n")
-#     print(output)
-
-
 import uuid
 import operator
 from typing import Annotated, List, TypedDict
 from langgraph.types import Command, interrupt
 from langgraph.checkpoint.memory import MemorySaver
 from chains.thinker import thinker_chain, thinker_parser
+from chains.design_config import design_chain
 from langgraph.graph import StateGraph
 from chains.flow import flow_chain
 
@@ -55,6 +12,9 @@ class State(TypedDict):
     messages: Annotated[List[dict], operator.concat]  # Changed from operator.concat
     clarification_count: Annotated[int, operator.add]
     clarification_needed: bool
+    flow: str  # Store the implementation flow
+    design_config: str  # Store the design configuration
+    project_name: str  # Store the project name
 
 def Thinker_Agent(state: State) -> Command:
     response = thinker_chain.invoke({
@@ -73,7 +33,7 @@ def Thinker_Agent(state: State) -> Command:
     else:
         return Command(
             update={"messages": [assistant_message], "clarification_needed": False},
-            goto="end_node"
+            goto="Flow_Node"
         )
 
 def User_Node(state: State):
@@ -104,14 +64,53 @@ def Implementation_Flow(thinker_output: str):
     response = flow_chain.invoke({"thinker_output": thinker_output})
     return response.content
 
+def Flow_Node(state: State) -> Command:
+    """Generate implementation flow from thinker output and assign to state"""
+    thinker_output = state["messages"][-1]["content"]
+    implementation_flow = Implementation_Flow(thinker_output)
+    
+    return Command(
+        update={"flow": implementation_flow},
+        goto="Design_Config_Node"
+    )
+
+def Design_Config_Node(state: State) -> Command:
+    """Generate design configuration from flow and assign to state"""
+    design_output = design_chain.invoke({"flow": state["flow"]})
+    
+    return Command(
+        update={"design_config": design_output.content},
+        goto="Project_Name_Node"
+    )
+
+def Project_Name_Node(state: State) -> Command:
+    """Ask user for project name"""
+    # Use interrupt to get project name from user
+    project_name = interrupt(
+        {
+            "question": "Please enter a name for your project:",
+            "awaiting": "project_name"
+        }
+    )
+    
+    return Command(
+        update={"project_name": project_name},
+        goto="end_node"
+    )
+
 def end_node(state: State):     
     """Final Node"""     
-    print(f"""The final output of the implementation agent output is: {state["messages"][-1]["content"]}""")
+    print(f"The Flow: {state['flow']}")
+    print(f"The Design: {state['design_config']}")
+    print(f"Project Name: {state['project_name']}")
     return state
 
 # Build the graph
 graph = StateGraph(State)
 graph.add_node("Thinker_Agent", Thinker_Agent)
+graph.add_node("Flow_Node", Flow_Node)
+graph.add_node("Design_Config_Node", Design_Config_Node)
+graph.add_node("Project_Name_Node", Project_Name_Node)
 # graph.add_node("Flow_Node", Flow_Node)
 graph.add_node("User_Node", User_Node)
 graph.add_node("end_node", end_node)
@@ -120,7 +119,7 @@ graph.add_node("end_node", end_node)
 graph.set_entry_point("Thinker_Agent")
 graph.set_finish_point("end_node")
 
-def run_graph(user_input: str):
+def get_idea(user_input: str):
     checkpointer = MemorySaver()
     app = graph.compile(checkpointer=checkpointer)
 
@@ -130,7 +129,10 @@ def run_graph(user_input: str):
     initial_state = {
         "messages": [user_message],
         "clarification_count": 0,
-        "clarification_needed": False
+        "clarification_needed": False,
+        "flow": "",
+        "design_config": "",
+        "project_name": ""
     }
 
     # Initialize the stream
@@ -149,7 +151,7 @@ def run_graph(user_input: str):
                     user_feedback = input("Your response: ")
                     # Resume the graph with the user's input using stream
                     stream = app.stream(Command(resume=user_feedback), config=thread_config)
-                    print(thread_config)
+                    # print(thread_config)
                     break  # Exit the inner loop to process the resumed stream
                 elif node_id == "end_node":
                     initial_state = value
@@ -159,14 +161,10 @@ def run_graph(user_input: str):
         else:
             break  
     
-    thinker_output = initial_state["messages"][-1]["content"]
-    implementation_flow = Implementation_Flow(thinker_output)
-    print(f"The Flow: {implementation_flow}")
-
-
-
-
-
-
-
+    # Return only flow and design_config
+    return {
+        "flow": initial_state["flow"],
+        "design_config": initial_state["design_config"],
+        "project_name": initial_state["project_name"]
+    }
 
